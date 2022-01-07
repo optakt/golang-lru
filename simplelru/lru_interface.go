@@ -8,7 +8,7 @@ type LRUCache interface {
 	Add(key, value interface{}) bool
 
 	// Returns key's value from the cache and
-	// updates the "recently used"-ness of the key. #value, isFound
+	// updates the "recently used"-ness of the key.
 	Get(key interface{}) (value interface{}, ok bool)
 
 	// Checks if a key exists in cache without updating the recent-ness.
@@ -21,10 +21,10 @@ type LRUCache interface {
 	Remove(key interface{}) bool
 
 	// Removes the oldest entry from cache.
-	RemoveOldest() (interface{}, interface{}, bool)
+	RemoveOldest() (key interface{}, value interface{}, ok bool)
 
-	// Returns the oldest entry from the cache. #key, value, isFound
-	GetOldest() (interface{}, interface{}, bool)
+	// Returns the oldest entry from the cache.
+	GetOldest() (key interface{}, value interface{}, ok bool)
 
 	// Returns a slice of the keys in the cache, from oldest to newest.
 	Keys() []interface{}
