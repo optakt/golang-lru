@@ -1,3 +1,3 @@
-module github.com/hashicorp/golang-lru
+module github.com/optakt/golang-lru
 
 go 1.12

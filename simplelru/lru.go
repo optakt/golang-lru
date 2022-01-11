@@ -5,25 +5,26 @@ import (
 	"errors"
 )
 
-// EvictCallback is used to get a callback when a cache entry is evicted
-type EvictCallback func(key interface{}, value interface{})
+// EvictHandler is a callback that gets executed before a cached entry should be
+// evicted, and which can abort the eviction of that entry if it returns `false`.
+type EvictHandler func(key interface{}, value interface{}) bool
 
-// LRU implements a non-thread safe fixed size LRU cache
+// LRU implements a non-thread safe fixed size LRU cache.
 type LRU struct {
 	size      int
 	evictList *list.List
 	items     map[interface{}]*list.Element
-	onEvict   EvictCallback
+	onEvict   EvictHandler
 }
 
-// entry is used to hold a value in the evictList
+// entry is used to hold a value in the evictList.
 type entry struct {
 	key   interface{}
 	value interface{}
 }
 
 // NewLRU constructs an LRU of the given size
-func NewLRU(size int, onEvict EvictCallback) (*LRU, error) {
+func NewLRU(size int, onEvict EvictHandler) (*LRU, error) {
 	if size <= 0 {
 		return nil, errors.New("must provide a positive size")
 	}
@@ -47,24 +48,28 @@ func (c *LRU) Purge() {
 	c.evictList.Init()
 }
 
-// Add adds a value to the cache.  Returns true if an eviction occurred.
+// Add adds a value to the cache. Returns true if an eviction occurred.
 func (c *LRU) Add(key, value interface{}) (evicted bool) {
-	// Check for existing item
+	// Check for existing item.
 	if ent, ok := c.items[key]; ok {
 		c.evictList.MoveToFront(ent)
 		ent.Value.(*entry).value = value
 		return false
 	}
 
-	// Add new item
+	// Add new item.
 	ent := &entry{key, value}
 	entry := c.evictList.PushFront(ent)
 	c.items[key] = entry
 
 	evict := c.evictList.Len() > c.size
-	// Verify size not exceeded
-	if evict {
-		c.removeOldest()
+	// If size was exceeded, try to remove the oldest entry until one is
+	// successfully evicted.
+	for evict {
+		ok := c.removeOldest()
+		if ok {
+			break
+		}
 	}
 	return evict
 }
@@ -110,16 +115,22 @@ func (c *LRU) Remove(key interface{}) (present bool) {
 
 // RemoveOldest removes the oldest item from the cache.
 func (c *LRU) RemoveOldest() (key, value interface{}, ok bool) {
-	ent := c.evictList.Back()
-	if ent != nil {
-		c.removeElement(ent)
-		kv := ent.Value.(*entry)
-		return kv.key, kv.value, true
+	for {
+		ent := c.evictList.Back()
+		if ent != nil {
+			evicted := c.removeElement(ent)
+			if !evicted {
+				continue
+			}
+
+			kv := ent.Value.(*entry)
+			return kv.key, kv.value, true
+		}
+		return nil, nil, false
 	}
-	return nil, nil, false
 }
 
-// GetOldest returns the oldest entry
+// GetOldest returns the oldest cached entry.
 func (c *LRU) GetOldest() (key, value interface{}, ok bool) {
 	ent := c.evictList.Back()
 	if ent != nil {
@@ -152,26 +163,36 @@ func (c *LRU) Resize(size int) (evicted int) {
 		diff = 0
 	}
 	for i := 0; i < diff; i++ {
-		c.removeOldest()
+		ok := c.removeOldest()
+		if !ok {
+			i--
+		}
 	}
 	c.size = size
 	return diff
 }
 
 // removeOldest removes the oldest item from the cache.
-func (c *LRU) removeOldest() {
+func (c *LRU) removeOldest() bool {
 	ent := c.evictList.Back()
 	if ent != nil {
-		c.removeElement(ent)
+		return c.removeElement(ent)
 	}
+	return true
 }
 
-// removeElement is used to remove a given list element from the cache
-func (c *LRU) removeElement(e *list.Element) {
-	c.evictList.Remove(e)
+// removeElement removes a given list element from the cache.
+func (c *LRU) removeElement(e *list.Element) bool {
 	kv := e.Value.(*entry)
-	delete(c.items, kv.key)
 	if c.onEvict != nil {
-		c.onEvict(kv.key, kv.value)
+		evict := c.onEvict(kv.key, kv.value)
+		if !evict {
+			c.evictList.MoveToFront(e)
+			return false
+		}
 	}
+
+	c.evictList.Remove(e)
+	delete(c.items, kv.key)
+	return true
 }
