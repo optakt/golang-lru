@@ -3,7 +3,7 @@ package lru
 import (
 	"sync"
 
-	"github.com/hashicorp/golang-lru/simplelru"
+	"github.com/optakt/golang-lru/simplelru"
 )
 
 const (
@@ -16,7 +16,6 @@ type Cache struct {
 	lru         *simplelru.LRU
 	evictedKeys []interface{}
 	evictedVals []interface{}
-	onEvictedCB func(k, v interface{}) bool
 	lock        sync.RWMutex
 }
 
@@ -57,35 +56,22 @@ func (c *Cache) onEvicted(k, v interface{}) bool {
 
 // Purge is used to completely clear the cache.
 func (c *Cache) Purge() {
-	var ks, vs []interface{}
 	c.lock.Lock()
 	c.lru.Purge()
-	if c.onEvictedCB != nil && len(c.evictedKeys) > 0 {
-		ks, vs = c.evictedKeys, c.evictedVals
+	if len(c.evictedKeys) > 0 {
 		c.initEvictBuffers()
 	}
 	c.lock.Unlock()
-	// invoke callback outside of critical section
-	if c.onEvictedCB != nil {
-		for i := 0; i < len(ks); i++ {
-			c.onEvicted(ks[i], vs[i])
-		}
-	}
 }
 
 // Add adds a value to the cache. Returns true if an eviction occurred.
 func (c *Cache) Add(key, value interface{}) (evicted bool) {
-	var k, v interface{}
 	c.lock.Lock()
 	evicted = c.lru.Add(key, value)
-	if c.onEvictedCB != nil && evicted {
-		k, v = c.evictedKeys[0], c.evictedVals[0]
+	if evicted {
 		c.evictedKeys, c.evictedVals = c.evictedKeys[:0], c.evictedVals[:0]
 	}
 	c.lock.Unlock()
-	if c.onEvictedCB != nil && evicted {
-		c.onEvicted(k, v)
-	}
 	return
 }
 
@@ -119,21 +105,16 @@ func (c *Cache) Peek(key interface{}) (value interface{}, ok bool) {
 // recent-ness or deleting it for being stale, and if not, adds the value.
 // Returns whether found and whether an eviction occurred.
 func (c *Cache) ContainsOrAdd(key, value interface{}) (ok, evicted bool) {
-	var k, v interface{}
 	c.lock.Lock()
 	if c.lru.Contains(key) {
 		c.lock.Unlock()
 		return true, false
 	}
 	evicted = c.lru.Add(key, value)
-	if c.onEvictedCB != nil && evicted {
-		k, v = c.evictedKeys[0], c.evictedVals[0]
+	if evicted {
 		c.evictedKeys, c.evictedVals = c.evictedKeys[:0], c.evictedVals[:0]
 	}
 	c.lock.Unlock()
-	if c.onEvictedCB != nil && evicted {
-		c.onEvicted(k, v)
-	}
 	return false, evicted
 }
 
@@ -141,7 +122,6 @@ func (c *Cache) ContainsOrAdd(key, value interface{}) (ok, evicted bool) {
 // recent-ness or deleting it for being stale, and if not, adds the value.
 // Returns whether found and whether an eviction occurred.
 func (c *Cache) PeekOrAdd(key, value interface{}) (previous interface{}, ok, evicted bool) {
-	var k, v interface{}
 	c.lock.Lock()
 	previous, ok = c.lru.Peek(key)
 	if ok {
@@ -149,64 +129,43 @@ func (c *Cache) PeekOrAdd(key, value interface{}) (previous interface{}, ok, evi
 		return previous, true, false
 	}
 	evicted = c.lru.Add(key, value)
-	if c.onEvictedCB != nil && evicted {
-		k, v = c.evictedKeys[0], c.evictedVals[0]
+	if evicted {
 		c.evictedKeys, c.evictedVals = c.evictedKeys[:0], c.evictedVals[:0]
 	}
 	c.lock.Unlock()
-	if c.onEvictedCB != nil && evicted {
-		c.onEvicted(k, v)
-	}
 	return nil, false, evicted
 }
 
 // Remove removes the provided key from the cache.
 func (c *Cache) Remove(key interface{}) (present bool) {
-	var k, v interface{}
 	c.lock.Lock()
 	present = c.lru.Remove(key)
-	if c.onEvictedCB != nil && present {
-		k, v = c.evictedKeys[0], c.evictedVals[0]
+	if present {
 		c.evictedKeys, c.evictedVals = c.evictedKeys[:0], c.evictedVals[:0]
 	}
 	c.lock.Unlock()
-	if c.onEvictedCB != nil && present {
-		c.onEvicted(k, v)
-	}
 	return
 }
 
 // Resize changes the cache size.
 func (c *Cache) Resize(size int) (evicted int) {
-	var ks, vs []interface{}
 	c.lock.Lock()
 	evicted = c.lru.Resize(size)
-	if c.onEvictedCB != nil && evicted > 0 {
-		ks, vs = c.evictedKeys, c.evictedVals
+	if evicted > 0 {
 		c.initEvictBuffers()
 	}
 	c.lock.Unlock()
-	if c.onEvictedCB != nil && evicted > 0 {
-		for i := 0; i < len(ks); i++ {
-			c.onEvicted(ks[i], vs[i])
-		}
-	}
 	return evicted
 }
 
 // RemoveOldest removes the oldest item from the cache.
 func (c *Cache) RemoveOldest() (key, value interface{}, ok bool) {
-	var k, v interface{}
 	c.lock.Lock()
 	key, value, ok = c.lru.RemoveOldest()
-	if c.onEvictedCB != nil && ok {
-		k, v = c.evictedKeys[0], c.evictedVals[0]
+	if ok {
 		c.evictedKeys, c.evictedVals = c.evictedKeys[:0], c.evictedVals[:0]
 	}
 	c.lock.Unlock()
-	if c.onEvictedCB != nil && ok {
-		c.onEvicted(k, v)
-	}
 	return
 }
 
