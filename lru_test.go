@@ -71,7 +71,7 @@ func TestLRU(t *testing.T) {
 		t.Parallel()
 
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			if k != v {
 				t.Fatalf("Evict values not equal (%v!=%v)", k, v)
 			}
@@ -141,7 +141,7 @@ func TestLRU(t *testing.T) {
 
 		abortEviction := true
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			if k != v {
 				t.Fatalf("Evict values not equal (%v!=%v)", k, v)
 			}
@@ -239,7 +239,7 @@ func TestLRUAdd(t *testing.T) {
 		t.Parallel()
 
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			evictCounter++
 			return true
 		}
@@ -262,7 +262,7 @@ func TestLRUAdd(t *testing.T) {
 
 		abortEviction := true
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			evictCounter++
 
 			if abortEviction {
@@ -393,7 +393,7 @@ func TestLRUResize(t *testing.T) {
 		t.Parallel()
 
 		onEvictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			onEvictCounter++
 			return true
 		}
@@ -435,7 +435,7 @@ func TestLRUResize(t *testing.T) {
 
 		abortEviction := true
 		onEvictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			onEvictCounter++
 
 			if abortEviction {

@@ -26,7 +26,7 @@ func New(size int) (*Cache, error) {
 
 // NewWithEvict constructs a fixed size cache with the given eviction
 // callback.
-func NewWithEvict(size int, onEvicted func(key, value interface{}) bool) (*Cache, error) {
+func NewWithEvict(size int, onEvicted func(k, v interface{}, used int) bool) (*Cache, error) {
 	// create a cache with default settings
 	c := &Cache{}
 	if onEvicted != nil {

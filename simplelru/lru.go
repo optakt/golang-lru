@@ -7,7 +7,7 @@ import (
 
 // EvictHandler is a callback that gets executed before a cached entry should be
 // evicted, and which can abort the eviction of that entry if it returns `false`.
-type EvictHandler func(key interface{}, value interface{}) bool
+type EvictHandler func(key interface{}, value interface{}, used int) bool
 
 // LRU implements a non-thread safe fixed size LRU cache.
 type LRU struct {
@@ -41,7 +41,7 @@ func NewLRU(size int, onEvict EvictHandler) (*LRU, error) {
 func (c *LRU) Purge() {
 	for k, v := range c.items {
 		if c.onEvict != nil {
-			c.onEvict(k, v.Value.(*entry).value)
+			c.onEvict(k, v.Value.(*entry).value, len(c.items))
 		}
 		delete(c.items, k)
 	}
@@ -185,7 +185,7 @@ func (c *LRU) removeOldest() bool {
 func (c *LRU) removeElement(e *list.Element) bool {
 	kv := e.Value.(*entry)
 	if c.onEvict != nil {
-		evict := c.onEvict(kv.key, kv.value)
+		evict := c.onEvict(kv.key, kv.value, len(c.items))
 		if !evict {
 			c.evictList.MoveToFront(e)
 			return false

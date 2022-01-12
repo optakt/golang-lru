@@ -7,7 +7,7 @@ import (
 func TestLRU(t *testing.T) {
 	t.Run("without aborted eviction", func(t *testing.T) {
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			if k != v {
 				t.Fatalf("Evict values not equal (%v!=%v)", k, v)
 			}
@@ -82,7 +82,7 @@ func TestLRU(t *testing.T) {
 	t.Run("with aborted eviction", func(t *testing.T) {
 		abortEviction := true
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			if k != v {
 				t.Fatalf("Evict values not equal (%v!=%v)", k, v)
 			}
@@ -220,7 +220,7 @@ func TestLRU_Add(t *testing.T) {
 		t.Parallel()
 
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			evictCounter++
 			return true
 		}
@@ -243,7 +243,7 @@ func TestLRU_Add(t *testing.T) {
 
 		abortEviction := true
 		evictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			evictCounter++
 
 			// Abort the first eviction.
@@ -313,7 +313,7 @@ func TestLRU_Resize(t *testing.T) {
 		t.Parallel()
 
 		onEvictCounter := 0
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			onEvictCounter++
 			return true
 		}
@@ -355,7 +355,7 @@ func TestLRU_Resize(t *testing.T) {
 
 		onEvictCounter := 0
 		abortEviction := true
-		onEvicted := func(k interface{}, v interface{}) bool {
+		onEvicted := func(k, v interface{}, used int) bool {
 			onEvictCounter++
 
 			// Abort the first eviction.
